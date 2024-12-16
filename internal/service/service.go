@@ -1,14 +1,23 @@
 package service
 
 import (
+	"Monitoring_of_air_pollution/internal/model"
 	"Monitoring_of_air_pollution/internal/storage/postgres"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/rs/zerolog/log"
+)
+
+const (
+	apiKey = "ТВОЙ АЙПИ ЖОПКА"
+	lat    = "55.7069" // Широта Ленинский проспект 6
+	lon    = "37.5833" // Долгота Ленинский проспект 6
 )
 
 var ErrChannelClosed = errors.New("channel is closed")
@@ -75,7 +84,33 @@ func (s *server) startCheckAirPollutionProcess() {
 	}
 }
 func (s *server) UpdateAirPollutiont() error {
-	fmt.Println("I AM HERE")
+	url := fmt.Sprintf("http://api.openweathermap.org/data/2.5/air_pollution?lat=%s&lon=%s&appid=%s", lat, lon, apiKey)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Logger.Fatal().Err(err).Msg("Ошибка запроса")
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Ошибка: получен статус %d\n", resp.StatusCode)
+		return err
+	}
+
+	var airPollution model.AirPollutionResponse
+	err = json.NewDecoder(resp.Body).Decode(&airPollution)
+	if err != nil {
+		log.Logger.Fatal().Err(err).Msg("Ошибка парсинга JSON")
+		return err
+	}
+
+	fmt.Printf("Координаты: широта %.4f, долгота %.4f\n", airPollution.Coord.Lat, airPollution.Coord.Lon)
+	for _, item := range airPollution.List {
+
+		fmt.Printf("AQI: %d, CO: %.2f, PM2.5: %.2f, PM10: %.2f\n", item.Main.AQI, item.Components.CO, item.Components.PM2_5, item.Components.PM10)
+		fmt.Printf("Дата: %s\n", time.Unix(item.Dt, 0).Format("2006-01-02 15:04:05"))
+	}
 	return nil
 }
 func NewServerConfig(cfg string, pg *postgres.Storage) (Server, error) {

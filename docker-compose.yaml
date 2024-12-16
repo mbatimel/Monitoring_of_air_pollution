@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15.7
+    environment:
+      POSTGRES_DB: WB_developer
+      POSTGRES_USER: mbatimel
+      POSTGRES_PASSWORD: wb_il
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

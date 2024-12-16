@@ -1,17 +1,16 @@
 package main
 
 import (
+	"Monitoring_of_air_pollution/internal/config"
+	"Monitoring_of_air_pollution/internal/repo"
+	"Monitoring_of_air_pollution/internal/service"
 	"Monitoring_of_air_pollution/internal/storage/postgres"
 	"context"
 	"net/http"
-	"time"
-
 	"os"
 	"os/signal"
 	"syscall"
-
-	"Monitoring_of_air_pollution/internal/config"
-	"Monitoring_of_air_pollution/internal/service"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -23,12 +22,19 @@ func main() {
 	log.Logger = config.Values().Logger().With().Str("serviceName", serviceName).Logger()
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGTERM, syscall.SIGINT)
+
 	postgresStorage, err := postgres.New(config.Values().Postgres, log.Logger)
 	if err != nil {
 		log.Logger.Fatal().Err(err).Msg("failed to connect to postgres")
 	}
 
-	srv, err := service.NewServerConfig(config.Values().ServiceBind, postgresStorage)
+	// Подключение к Telegram-боту
+	telegramBot, err := repo.NewTelegramBot() // Укажите токен и chatID
+	if err != nil {
+		log.Logger.Fatal().Err(err).Msg("Failed to connect to Telegram Bot")
+	}
+
+	srv, err := service.NewServerConfig(config.Values().ServiceBind, postgresStorage, telegramBot)
 	if err != nil {
 		log.Logger.Fatal().Err(err).Msg("Failed to create server")
 	}
@@ -46,9 +52,7 @@ func main() {
 	log.Info().Msg("Server started")
 
 	// Wait for interrupt signal to gracefully shutdown the server
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	sig := <-sigChan
+	sig := <-shutdown
 	log.Printf("Received signal: %v", sig)
 
 	ctxShutDown, cancel := context.WithTimeout(context.Background(), 5*time.Minute)

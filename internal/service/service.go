@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	apiKey = "260b89a8a6af200ee04660dfc8b3d012"
+	apiKey = ""
 	lat    = "55.7069" // Широта Ленинский проспект 6
 	lon    = "37.5833" // Долгота Ленинский проспект 6
 )
@@ -88,14 +88,14 @@ func (s *server) startCheckAirPollutionProcess() {
 			if err != nil {
 				log.Logger.Fatal().Err(err).Msg("Failed to connect to Telegram Bot")
 			}
-			if !s.ventilation {
-				err = s.UpdateAirPollutiont()
-				if err != nil {
-					log.Logger.Fatal().Err(err).Msg("Failed to update air pollution")
-				} else {
-					log.Info().Msg("Air pollution updated successfully")
-				}
+
+			err = s.UpdateAirPollutiont()
+			if err != nil {
+				log.Logger.Fatal().Err(err).Msg("Failed to update air pollution")
+			} else {
+				log.Info().Msg("Air pollution updated successfully")
 			}
+
 		}
 	}
 }

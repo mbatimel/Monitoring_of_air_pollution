@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	apiToken = "5337023432:AAGWQ7HDN8mLTYGkeg8WbEdGefCnRuylHSw"
-	chatID   = 789019801
+	apiToken = ""
+	chatID   = 1234567
 )
 
 type TelegramBot struct {

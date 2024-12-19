@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	apiKey = "api-key"
+	apiKey = "260b89a8a6af200ee04660dfc8b3d012"
 	lat    = "55.7069" // Широта Ленинский проспект 6
 	lon    = "37.5833" // Долгота Ленинский проспект 6
 )
@@ -29,10 +29,11 @@ type Server interface {
 }
 
 type server struct {
-	srv    *http.Server
-	db     *postgres.Storage
-	stopCh chan struct{}
-	bot    *repo.TelegramBot // Telegram бот
+	srv         *http.Server
+	db          *postgres.Storage
+	stopCh      chan struct{}
+	bot         *repo.TelegramBot // Telegram бот
+	ventilation bool
 }
 
 func (s *server) Run(ctx context.Context) error {
@@ -70,7 +71,7 @@ func (s *server) Close() error {
 }
 
 func (s *server) startCheckAirPollutionProcess() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -79,11 +80,21 @@ func (s *server) startCheckAirPollutionProcess() {
 			log.Info().Msg("Stopping background air pollution update process")
 			return
 		case <-ticker.C:
-			err := s.UpdateAirPollutiont()
+			err := s.bot.SendControlButtons()
 			if err != nil {
-				log.Logger.Fatal().Err(err).Msg("Failed to update air pollution")
-			} else {
-				log.Info().Msg("Air pollution updated successfully")
+				log.Logger.Fatal().Err(err).Msg("Failed to connect to Telegram Bot")
+			}
+			err, s.ventilation = s.bot.HandleUpdates()
+			if err != nil {
+				log.Logger.Fatal().Err(err).Msg("Failed to connect to Telegram Bot")
+			}
+			if !s.ventilation {
+				err = s.UpdateAirPollutiont()
+				if err != nil {
+					log.Logger.Fatal().Err(err).Msg("Failed to update air pollution")
+				} else {
+					log.Info().Msg("Air pollution updated successfully")
+				}
 			}
 		}
 	}
@@ -116,7 +127,6 @@ func (s *server) UpdateAirPollutiont() error {
 		message += fmt.Sprintf("AQI: %d, CO: %.2f, PM2.5: %.2f, PM10: %.2f\n", item.Main.AQI, item.Components.CO, item.Components.PM2_5, item.Components.PM10)
 		message += fmt.Sprintf("Дата: %s\n", time.Unix(item.Dt, 0).Format("2006-01-02 15:04:05"))
 	}
-
 	// Отправка сообщения в Telegram
 	if err := s.bot.SendMessage(message); err != nil {
 		log.Logger.Fatal().Err(err).Msg("Ошибка отправки сообщения в Telegram")
